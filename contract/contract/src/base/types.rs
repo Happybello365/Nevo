@@ -249,6 +249,24 @@ pub struct PoolContribution {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EventMetrics {
+    pub tickets_sold: u32,
+}
+
+impl Default for EventMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl EventMetrics {
+    pub fn new() -> Self {
+        Self { tickets_sold: 0 }
+    }
+}
+
+#[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StorageKey {
     Pool(u64),
@@ -260,6 +278,7 @@ pub enum StorageKey {
     Contribution(BytesN<32>, Address),
     PoolContribution(u64, Address),
     PoolContributors(u64),
+    EventMetrics(u64),
 
     NextPoolId,
     IsPaused,

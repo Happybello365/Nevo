@@ -3,8 +3,8 @@ use soroban_sdk::{Address, BytesN, Env, String, Vec};
 use crate::base::{
     errors::CrowdfundingError,
     types::{
-        CampaignDetails, CampaignLifecycleStatus, PoolConfig, PoolContribution, PoolMetadata,
-        PoolState,
+        CampaignDetails, CampaignLifecycleStatus, EventMetrics, PoolConfig, PoolContribution,
+        PoolMetadata, PoolState,
     },
 };
 
@@ -200,6 +200,10 @@ pub trait CrowdfundingTrait {
     fn set_platform_fee_bps(env: Env, fee_bps: u32) -> Result<(), CrowdfundingError>;
 
     fn get_platform_fee_bps(env: Env) -> Result<u32, CrowdfundingError>;
+
+    fn get_event_metrics(env: Env, pool_id: u64) -> Result<EventMetrics, CrowdfundingError>;
+
+    fn is_ticket_buyer(env: Env, pool_id: u64, buyer: Address) -> bool;
 
     /// Purchase a ticket for a pool, splitting the payment between the event
     /// pool and the platform fee pool using the current `PlatformFeeBps`.

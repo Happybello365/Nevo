@@ -239,3 +239,49 @@ fn test_buy_ticket_requires_buyer_auth() {
         "buyer auth must be recorded"
     );
 }
+
+#[test]
+fn test_buy_ticket_updates_metrics() {
+    let env = Env::default();
+    let (client, _, token) = setup(&env);
+    let pool_id = create_pool(&client, &env, &token);
+
+    let price = 10_000i128;
+
+    // Initial metrics
+    let initial_metrics = client.get_event_metrics(&pool_id);
+    assert_eq!(initial_metrics.tickets_sold, 0);
+
+    // Buy first ticket
+    mint_and_buy(&env, &client, &token, pool_id, price);
+    let metrics = client.get_event_metrics(&pool_id);
+    assert_eq!(metrics.tickets_sold, 1);
+
+    // Buy second ticket
+    mint_and_buy(&env, &client, &token, pool_id, price);
+    let metrics = client.get_event_metrics(&pool_id);
+    assert_eq!(metrics.tickets_sold, 2);
+}
+
+#[test]
+fn test_buy_ticket_records_user_ticket() {
+    let env = Env::default();
+    let (client, _, token) = setup(&env);
+    let pool_id = create_pool(&client, &env, &token);
+
+    let price = 10_000i128;
+    let (buyer, _) = mint_and_buy(&env, &client, &token, pool_id, price);
+
+    // Verify it's recorded
+    assert!(
+        client.is_ticket_buyer(&pool_id, &buyer),
+        "buyer must be recorded as having a ticket"
+    );
+
+    // Verify another random user is NOT recorded
+    let other = Address::generate(&env);
+    assert!(
+        !client.is_ticket_buyer(&pool_id, &other),
+        "other user must not be recorded as having a ticket"
+    );
+}

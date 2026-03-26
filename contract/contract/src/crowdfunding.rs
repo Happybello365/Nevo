@@ -9,8 +9,8 @@ use crate::base::{
     },
     types::{
         CampaignDetails, CampaignLifecycleStatus, CampaignMetrics, Contribution,
-        EmergencyWithdrawal, MultiSigConfig, PoolConfig, PoolContribution, PoolMetadata,
-        PoolMetrics, PoolState, StorageKey, MAX_DESCRIPTION_LENGTH, MAX_HASH_LENGTH,
+        EmergencyWithdrawal, EventMetrics, MultiSigConfig, PoolConfig, PoolContribution,
+        PoolMetadata, PoolMetrics, PoolState, StorageKey, MAX_DESCRIPTION_LENGTH, MAX_HASH_LENGTH,
         MAX_STRING_LENGTH, MAX_URL_LENGTH,
     },
 };
@@ -336,9 +336,39 @@ impl CrowdfundingTrait for CrowdfundingContract {
         let user_ticket_key = StorageKey::UserTicket(pool_id, buyer.clone());
         env.storage().instance().set(&user_ticket_key, &true);
 
+        // Update event metrics
+        let metrics_key = StorageKey::EventMetrics(pool_id);
+        let mut metrics: EventMetrics = env
+            .storage()
+            .instance()
+            .get(&metrics_key)
+            .unwrap_or(EventMetrics::new());
+        metrics.tickets_sold += 1;
+        env.storage().instance().set(&metrics_key, &metrics);
+
         events::ticket_sold(&env, pool_id, buyer, price, event_amount, fee_amount);
 
         Ok((event_amount, fee_amount))
+    }
+
+    fn get_event_metrics(env: Env, pool_id: u64) -> Result<EventMetrics, CrowdfundingError> {
+        // Ensure pool exists
+        let pool_key = StorageKey::Pool(pool_id);
+        if !env.storage().instance().has(&pool_key) {
+            return Err(CrowdfundingError::PoolNotFound);
+        }
+
+        let metrics_key = StorageKey::EventMetrics(pool_id);
+        Ok(env
+            .storage()
+            .instance()
+            .get(&metrics_key)
+            .unwrap_or_else(EventMetrics::new))
+    }
+
+    fn is_ticket_buyer(env: Env, pool_id: u64, buyer: Address) -> bool {
+        let user_ticket_key = StorageKey::UserTicket(pool_id, buyer);
+        env.storage().instance().get(&user_ticket_key).unwrap_or(false)
     }
 
     fn get_global_raised_total(env: Env) -> i128 {
