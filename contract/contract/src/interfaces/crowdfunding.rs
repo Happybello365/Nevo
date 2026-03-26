@@ -215,4 +215,6 @@ pub trait CrowdfundingTrait {
         asset: Address,
         price: i128,
     ) -> Result<(i128, i128), CrowdfundingError>;
+
+    fn upgrade_contract(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), CrowdfundingError>;
 }
