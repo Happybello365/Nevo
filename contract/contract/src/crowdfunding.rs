@@ -1886,7 +1886,8 @@ impl CrowdfundingTrait for CrowdfundingContract {
             .ok_or(CrowdfundingError::NotInitialized)?;
         admin.require_auth();
 
-        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        env.deployer().update_current_contract_wasm(new_wasm_hash.clone());
+        events::contract_upgraded(&env, new_wasm_hash);
         Ok(())
     }
 }
