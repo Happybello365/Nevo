@@ -38,6 +38,10 @@ pub struct Contribution {
 pub struct MultiSigConfig {
     pub required_signatures: u32,
     pub signers: Vec<Address>,
+    /// When true, this multi-sig config also gates event fund withdrawals for
+    /// the associated pool (i.e. `EventPool` balance requires multi-sig approval
+    /// before disbursement, not just admin auth).
+    pub allow_event_withdrawal: bool,
 }
 
 // Updated pool configuration for donation pools
