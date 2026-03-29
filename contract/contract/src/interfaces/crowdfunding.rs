@@ -226,6 +226,10 @@ pub trait CrowdfundingTrait {
         price: i128,
     ) -> Result<(i128, i128), CrowdfundingError>;
 
+    /// Returns `(tickets_sold, total_collected)` for the given event pool.
+    /// `total_collected` is the net amount credited to the event (after platform fee).
+    fn get_event_metrics(env: Env, pool_id: u64) -> Result<(u64, i128), CrowdfundingError>;
+
     fn upgrade_contract(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), CrowdfundingError>;
 
     /// Returns the total number of events ever emitted by this contract.

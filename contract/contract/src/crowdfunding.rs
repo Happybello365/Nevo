@@ -367,6 +367,18 @@ impl CrowdfundingTrait for CrowdfundingContract {
         env.storage().instance().set(&metrics_key, &metrics);
 
         events::ticket_sold(&env, pool_id, buyer, price, event_amount, fee_amount);
+
+        // Increment ticket count
+        let ticket_count_key = StorageKey::TicketCount(pool_id);
+        let count: u64 = env
+            .storage()
+            .instance()
+            .get(&ticket_count_key)
+            .unwrap_or(0);
+        env.storage()
+            .instance()
+            .set(&ticket_count_key, &(count + 1));
+
         Ok((event_amount, fee_amount))
  main
     }
@@ -394,6 +406,22 @@ impl CrowdfundingTrait for CrowdfundingContract {
             .unwrap_or(false)
     }
 
+    fn get_event_metrics(env: Env, pool_id: u64) -> Result<(u64, i128), CrowdfundingError> {
+        if !env.storage().instance().has(&StorageKey::Pool(pool_id)) {
+            return Err(CrowdfundingError::PoolNotFound);
+        }
+        let tickets_sold: u64 = env
+            .storage()
+            .instance()
+            .get(&StorageKey::TicketCount(pool_id))
+            .unwrap_or(0);
+        let total_collected: i128 = env
+            .storage()
+            .instance()
+            .get(&StorageKey::EventPool(pool_id))
+            .unwrap_or(0);
+        Ok((tickets_sold, total_collected))
+    }
     fn get_global_raised_total(env: Env) -> i128 {
         env.storage()
             .instance()

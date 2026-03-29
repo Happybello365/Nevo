@@ -313,8 +313,79 @@ fn test_buy_ticket_accumulates_across_multiple_purchases() {
     );
 }
 
-// ── validation ────────────────────────────────────────────────────────────────
+// ── get_event_metrics ─────────────────────────────────────────────────────────
 
+#[test]
+fn test_get_event_metrics_no_tickets() {
+    let env = Env::default();
+    let (client, _, token) = setup(&env);
+    let pool_id = create_pool(&client, &env, &token);
+
+    let (tickets_sold, total_collected) = client.get_event_metrics(&pool_id);
+    assert_eq!(tickets_sold, 0);
+    assert_eq!(total_collected, 0);
+}
+
+#[test]
+fn test_get_event_metrics_single_ticket() {
+    let env = Env::default();
+    let (client, _, token) = setup(&env);
+    let pool_id = create_pool(&client, &env, &token);
+
+    client.set_platform_fee_bps(&500); // 5%
+    let price = 10_000i128;
+    mint_and_buy(&env, &client, &token, pool_id, price);
+
+    let (tickets_sold, total_collected) = client.get_event_metrics(&pool_id);
+    assert_eq!(tickets_sold, 1);
+    assert_eq!(total_collected, 9_500); // price - 5% fee
+}
+
+#[test]
+fn test_get_event_metrics_multiple_tickets() {
+    let env = Env::default();
+    let (client, _, token) = setup(&env);
+    let pool_id = create_pool(&client, &env, &token);
+
+    client.set_platform_fee_bps(&250); // 2.5%
+    let price = 10_000i128;
+
+    for _ in 0..3 {
+        mint_and_buy(&env, &client, &token, pool_id, price);
+    }
+
+    // Each ticket: event_amount = 9_750, fee = 250
+    let (tickets_sold, total_collected) = client.get_event_metrics(&pool_id);
+    assert_eq!(tickets_sold, 3);
+    assert_eq!(total_collected, 29_250);
+}
+
+#[test]
+fn test_get_event_metrics_pool_not_found() {
+    let env = Env::default();
+    let (client, _, _) = setup(&env);
+
+    let result = client.try_get_event_metrics(&999u64);
+    assert_eq!(result, Err(Ok(CrowdfundingError::PoolNotFound)));
+}
+
+#[test]
+fn test_get_event_metrics_zero_fee_full_collection() {
+    let env = Env::default();
+    let (client, _, token) = setup(&env);
+    let pool_id = create_pool(&client, &env, &token);
+
+    // fee_bps = 0 (default) → total_collected == sum of all prices
+    let price = 5_000i128;
+    mint_and_buy(&env, &client, &token, pool_id, price);
+    mint_and_buy(&env, &client, &token, pool_id, price);
+
+    let (tickets_sold, total_collected) = client.get_event_metrics(&pool_id);
+    assert_eq!(tickets_sold, 2);
+    assert_eq!(total_collected, 10_000);
+}
+
+// ── validation ────────────────────────────────────────────────────────────────
 #[test]
 fn test_buy_ticket_zero_price_fails() {
     let env = Env::default();
