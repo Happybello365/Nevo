@@ -10,6 +10,8 @@ pub enum FundEduError {
     // Application errors
     DuplicateApplication = 3,
     UnauthorizedValidator = 4,
+    NotPending = 5,
+    AlreadyRejected = 6,
 }
 
 #[cfg(test)]
@@ -22,6 +24,8 @@ mod tests {
         assert_eq!(FundEduError::PoolNotActive as u32, 2);
         assert_eq!(FundEduError::DuplicateApplication as u32, 3);
         assert_eq!(FundEduError::UnauthorizedValidator as u32, 4);
+        assert_eq!(FundEduError::NotPending as u32, 5);
+        assert_eq!(FundEduError::AlreadyRejected as u32, 6);
     }
 
     #[test]
@@ -31,6 +35,8 @@ mod tests {
             FundEduError::PoolNotActive,
             FundEduError::DuplicateApplication,
             FundEduError::UnauthorizedValidator,
+            FundEduError::NotPending,
+            FundEduError::AlreadyRejected,
         ];
         for i in 0..variants.len() {
             for j in (i + 1)..variants.len() {
@@ -44,5 +50,7 @@ mod tests {
         assert!(FundEduError::InvalidSponsor < FundEduError::PoolNotActive);
         assert!(FundEduError::PoolNotActive < FundEduError::DuplicateApplication);
         assert!(FundEduError::DuplicateApplication < FundEduError::UnauthorizedValidator);
+        assert!(FundEduError::UnauthorizedValidator < FundEduError::NotPending);
+        assert!(FundEduError::NotPending < FundEduError::AlreadyRejected);
     }
 }
