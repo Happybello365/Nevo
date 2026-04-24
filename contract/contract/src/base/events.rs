@@ -548,14 +548,22 @@ pub fn scholarship_rejected(env: &Env, pool_id: u64, applicant: Address, validat
     let topics = (Symbol::new(env, "scholarship_rejected"), pool_id, applicant);
     env.events().publish(topics, validator);
 }
-pub fn application_approved(env: &Env, admin: Address, cause: Address) {
-    let topics = (symbol_short!("AppApprv"), admin);
-    env.events().publish(topics, cause);
+pub fn school_registered(env: &Env, school_addr: Address) {
+    let topics = (symbol_short!("SchReg"), school_addr);
+    env.events().publish(topics, ());
 }
 
-pub fn application_rejected(env: &Env, admin: Address, cause: Address) {
-    let topics = (symbol_short!("AppRej"), admin);
-    env.events().publish(topics, cause);
+pub fn school_revoked(env: &Env, school_addr: Address) {
+    let topics = (symbol_short!("SchRev"), school_addr);
+    env.events().publish(topics, ());
+}
+
+pub fn application_approved(env: &Env, _admin: Address, cause: Address) {
+    school_registered(env, cause);
+}
+
+pub fn application_rejected(env: &Env, _admin: Address, cause: Address) {
+    school_revoked(env, cause);
 }
 
 pub fn application_submitted(env: &Env, pool_id: u64, student: Address, requested_amount: i128) {
