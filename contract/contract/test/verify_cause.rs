@@ -1,6 +1,8 @@
 #![cfg(test)]
 
-use soroban_sdk::{symbol_short, testutils::Address as _, testutils::Events, Address, Env, IntoVal};
+use soroban_sdk::{
+    symbol_short, testutils::Address as _, testutils::Events, Address, Env, IntoVal,
+};
 
 use crate::crowdfunding::{CrowdfundingContract, CrowdfundingContractClient};
 

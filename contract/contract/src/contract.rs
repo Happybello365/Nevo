@@ -31,7 +31,15 @@ impl CrowdfundingTrait for FundEduContract {
         deadline: u64,
         token_address: Address,
     ) -> Result<(), CrowdfundingError> {
-        CrowdfundingContract::create_campaign(env, id, title, creator, goal, deadline, token_address)
+        CrowdfundingContract::create_campaign(
+            env,
+            id,
+            title,
+            creator,
+            goal,
+            deadline,
+            token_address,
+        )
     }
 
     fn get_campaign(env: Env, id: BytesN<32>) -> Result<CampaignDetails, CrowdfundingError> {

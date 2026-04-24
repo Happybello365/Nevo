@@ -2,6 +2,8 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, BytesN, Env, String, Vec};
 
 use crate::base::errors::SecondCrowdfundingError;
+#[cfg(test)]
+use crate::base::types::{EventDetails, EventMetrics};
 use crate::base::{
     errors::{CrowdfundingError, SecondCrowdfundingError, ValidationError},
     events,
@@ -20,7 +22,10 @@ use crate::interfaces::crowdfunding::CrowdfundingTrait;
 #[cfg(test)]
 use crate::interfaces::second_crowdfunding::SecondCrowdfundingTrait;
 
+/// Documentation for this item.
+#[allow(missing_docs)]
 #[contract]
+/// Represents a crowdfundingcontract.
 pub struct CrowdfundingContract;
 
 // Internal helper functions
@@ -68,6 +73,8 @@ impl CrowdfundingContract {
     }
 }
 
+/// Documentation for this item.
+#[allow(missing_docs)]
 #[contractimpl]
 #[allow(clippy::too_many_arguments)]
 impl CrowdfundingTrait for CrowdfundingContract {
@@ -988,7 +995,11 @@ impl CrowdfundingTrait for CrowdfundingContract {
         if sponsor_balance < config.target_amount {
             return Err(CrowdfundingError::InsufficientSponsorBalance);
         }
-        token_client.transfer(&creator, &env.current_contract_address(), &config.target_amount);
+        token_client.transfer(
+            &creator,
+            &env.current_contract_address(),
+            &config.target_amount,
+        );
 
         // Record the locked balance for this pool
         env.storage()
@@ -1236,15 +1247,15 @@ impl CrowdfundingTrait for CrowdfundingContract {
         }
 
         let metadata_key = StorageKey::PoolMetadata(pool_id);
-        let mut metadata: PoolMetadata = env
-            .storage()
-            .persistent()
-            .get(&metadata_key)
-            .unwrap_or(PoolMetadata {
-                description: String::from_str(&env, ""),
-                external_url: String::from_str(&env, ""),
-                image_hash: String::from_str(&env, ""),
-            });
+        let mut metadata: PoolMetadata =
+            env.storage()
+                .persistent()
+                .get(&metadata_key)
+                .unwrap_or(PoolMetadata {
+                    description: String::from_str(&env, ""),
+                    external_url: String::from_str(&env, ""),
+                    image_hash: String::from_str(&env, ""),
+                });
 
         metadata.image_hash = new_hash.clone();
         env.storage().persistent().set(&metadata_key, &metadata);
@@ -1264,21 +1275,21 @@ impl CrowdfundingTrait for CrowdfundingContract {
         if Self::is_paused(env.clone()) {
             return Err(CrowdfundingError::ContractPaused);
         }
-        
+
         // Authorize caller - must be pool creator or validator
         let pool_key = StorageKey::Pool(pool_id);
         if !env.storage().instance().has(&pool_key) {
             return Err(CrowdfundingError::PoolNotFound);
         }
-        
+
         let pool: PoolConfig = env.storage().instance().get(&pool_key).unwrap();
         let creator_key = StorageKey::PoolCreator(pool_id);
         let creator: Address = env.storage().instance().get(&creator_key).unwrap();
-        
+
         if caller != creator && caller != pool.validator {
             return Err(CrowdfundingError::Unauthorized);
         }
-        
+
         caller.require_auth();
 
         // Validate state transition (optional - could add more complex logic)
