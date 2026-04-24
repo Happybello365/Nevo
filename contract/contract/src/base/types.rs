@@ -372,6 +372,8 @@ pub enum StorageKey {
     ScholarshipApplication(u64, Address),
     // Locked token balance deposited by the sponsor at pool creation
     PoolBalance(u64),
+    // Sum of requested_amount for all Approved applications on a pool
+    PoolAllocated(u64),
 }
 
 #[cfg(test)]

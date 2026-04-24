@@ -161,6 +161,11 @@ pub fn pool_closed(env: &Env, pool_id: u64, closed_by: Address, timestamp: u64) 
     env.events().publish(topics, timestamp);
 }
 
+pub fn pool_unallocated_withdrawn(env: &Env, pool_id: u64, sponsor: Address, amount: i128) {
+    let topics = (Symbol::new(env, "pool_unalloc_withdrawn"), pool_id, sponsor);
+    env.events().publish(topics, amount);
+}
+
 pub fn platform_fees_withdrawn(env: &Env, to: Address, amount: i128) {
     let topics = (Symbol::new(env, "platform_fees_withdrawn"), to);
     env.events().publish(topics, amount);
@@ -185,7 +190,6 @@ pub fn pool_metadata_updated(env: &Env, pool_id: u64, updater: Address, new_meta
     let topics = (Symbol::new(env, "pool_metadata_updated"), pool_id, updater);
     env.events().publish(topics, new_metadata_hash);
 }
-
 
 pub fn platform_fee_bps_set(env: &Env, admin: Address, fee_bps: u32) {
     let topics = (Symbol::new(env, "platform_fee_bps_set"), admin);

@@ -31,7 +31,15 @@ impl CrowdfundingTrait for FundEduContract {
         deadline: u64,
         token_address: Address,
     ) -> Result<(), CrowdfundingError> {
-        CrowdfundingContract::create_campaign(env, id, title, creator, goal, deadline, token_address)
+        CrowdfundingContract::create_campaign(
+            env,
+            id,
+            title,
+            creator,
+            goal,
+            deadline,
+            token_address,
+        )
     }
 
     fn get_campaign(env: Env, id: BytesN<32>) -> Result<CampaignDetails, CrowdfundingError> {
@@ -366,5 +374,18 @@ impl CrowdfundingTrait for FundEduContract {
 
     fn claim_pool_funds(env: Env, pool_id: u64, student: Address) -> Result<(), CrowdfundingError> {
         CrowdfundingContract::claim_pool_funds(env, pool_id, student)
+    }
+
+    fn get_pool_liquid_balance(env: Env, pool_id: u64) -> Result<i128, CrowdfundingError> {
+        CrowdfundingContract::get_pool_liquid_balance(env, pool_id)
+    }
+
+    fn withdraw_unallocated(
+        env: Env,
+        pool_id: u64,
+        sponsor: Address,
+        amount: i128,
+    ) -> Result<(), CrowdfundingError> {
+        CrowdfundingContract::withdraw_unallocated(env, pool_id, sponsor, amount)
     }
 }
