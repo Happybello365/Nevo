@@ -39,6 +39,8 @@ pub struct PoolConfig {
     pub is_private: bool,
     pub duration: u64,
     pub created_at: u64,
+    pub token_address: Address,
+    pub validator: Address,
 }
 
 #[contracttype]
@@ -213,6 +215,42 @@ pub struct PoolContribution {
     pub asset: Address,
 }
 
+// Milestone and Application types for scholarship validation
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ApplicationStatus {
+    Pending = 0,
+    Approved = 1,
+    Rejected = 2,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ApplicationDetails {
+    pub pool_id: u64,
+    pub applicant: Address,
+    pub requested_amount: i128,
+    pub status: ApplicationStatus,
+    pub reviewer: Option<Address>,
+    pub review_note: Option<String>,
+    pub applied_at: u64,
+    pub reviewed_at: Option<u64>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MilestoneDetails {
+    pub pool_id: u64,
+    pub milestone_index: u32,
+    pub description: String,
+    pub unlock_time: u64,
+    pub is_unlocked: bool,
+    pub unlocked_by: Option<Address>,
+    pub unlocked_at: Option<u64>,
+    pub performance_override: bool, // true if unlocked by validator override
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StorageKey {
@@ -253,7 +291,10 @@ pub enum StorageKey {
     ReentrancyLock(u64),
     EmergencyWithdrawalLock,
     PoolCreator(u64),
-main
+    
+    // Milestone-related storage keys
+    PoolMilestone(u64, u32), // pool_id, milestone_index
+    ApplicationMilestone(u64, Address, u32), // pool_id, applicant, milestone_index
 }
 
 #[cfg(test)]

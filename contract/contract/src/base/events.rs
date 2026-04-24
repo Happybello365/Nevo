@@ -144,7 +144,6 @@ pub fn platform_fees_withdrawn(env: &Env, admin: Address, amount: i128) {
     env.events().publish(topics, amount);
 }
 
- feature/asset-based-discount
 pub fn asset_discount_set(env: &Env, admin: Address, asset: Address, discount_bps: u32) {
     let topics = (Symbol::new(env, "asset_discount_set"), admin, asset);
     env.events().publish(topics, discount_bps);
@@ -155,8 +154,6 @@ pub fn platform_fee_percentage_set(env: &Env, admin: Address, fee_bps: u32) {
     env.events().publish(topics, fee_bps);
 }
 
-
- main
 pub fn address_blacklisted(env: &Env, admin: Address, address: Address) {
     let topics = (Symbol::new(env, "address_blacklisted"), admin);
     env.events().publish(topics, address);
@@ -166,11 +163,25 @@ pub fn address_unblacklisted(env: &Env, admin: Address, address: Address) {
     let topics = (Symbol::new(env, "address_unblacklisted"), admin);
     env.events().publish(topics, address);
 }
- feature/asset-based-discount
-
 
 pub fn pool_metadata_updated(env: &Env, pool_id: u64, updater: Address, new_metadata_hash: String) {
     let topics = (Symbol::new(env, "pool_metadata_updated"), pool_id, updater);
     env.events().publish(topics, new_metadata_hash);
 }
- main
+
+// Milestone events
+pub fn milestone_created(env: &Env, pool_id: u64, milestone_index: u32, unlock_time: u64) {
+    let topics = (Symbol::new(env, "milestone_created"), pool_id);
+    env.events().publish(topics, (milestone_index, unlock_time));
+}
+
+pub fn milestone_unlocked(
+    env: &Env,
+    pool_id: u64,
+    milestone_index: u32,
+    unlocked_by: Address,
+    performance_override: bool,
+) {
+    let topics = (Symbol::new(env, "milestone_unlocked"), pool_id, unlocked_by);
+    env.events().publish(topics, (milestone_index, performance_override));
+}

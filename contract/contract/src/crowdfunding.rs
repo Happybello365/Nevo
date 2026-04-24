@@ -9,7 +9,7 @@ use crate::base::{
     },
     types::{
         CampaignDetails, CampaignLifecycleStatus, CampaignMetrics, Contribution,
-        EmergencyWithdrawal, MultiSigConfig, PoolConfig, PoolContribution, PoolMetadata,
+        EmergencyWithdrawal, MilestoneDetails, MultiSigConfig, PoolConfig, PoolContribution, PoolMetadata,
         PoolMetrics, PoolState, StorageKey, MAX_DESCRIPTION_LENGTH, MAX_HASH_LENGTH,
         MAX_URL_LENGTH,
     },
@@ -1767,6 +1767,112 @@ impl CrowdfundingTrait for CrowdfundingContract {
         }
 
         Ok(result)
- main
+    }
+
+    fn unlock_performance_milestone(
+        env: Env,
+        pool_id: u64,
+        milestone_index: u32,
+        validator: Address,
+    ) -> Result<(), CrowdfundingError> {
+        // Require authentication from the validator
+        validator.require_auth();
+
+        // Get the pool to verify the validator
+        let pool_key = StorageKey::Pool(pool_id);
+        let pool: PoolConfig = env
+            .storage()
+            .instance()
+            .get(&pool_key)
+            .ok_or(CrowdfundingError::PoolNotFound)?;
+
+        // Verify that the caller is the designated validator for this pool
+        if pool.validator != validator {
+            return Err(CrowdfundingError::NotPoolValidator);
+        }
+
+        // Get the milestone
+        let milestone_key = StorageKey::PoolMilestone(pool_id, milestone_index);
+        let mut milestone: MilestoneDetails = env
+            .storage()
+            .instance()
+            .get(&milestone_key)
+            .ok_or(CrowdfundingError::MilestoneNotFound)?;
+
+        // Check if milestone is already unlocked
+        if milestone.is_unlocked {
+            return Err(CrowdfundingError::MilestoneAlreadyUnlocked);
+        }
+
+        // Unlock the milestone with performance override
+        milestone.is_unlocked = true;
+        milestone.unlocked_by = Some(validator.clone());
+        milestone.unlocked_at = Some(env.ledger().timestamp());
+        milestone.performance_override = true;
+
+        // Save the updated milestone
+        env.storage().instance().set(&milestone_key, &milestone);
+
+        // Emit event for milestone unlock
+        events::milestone_unlocked(&env, pool_id, milestone_index, validator, true);
+
+        Ok(())
+    }
+
+    fn get_milestone(
+        env: Env,
+        pool_id: u64,
+        milestone_index: u32,
+    ) -> Result<MilestoneDetails, CrowdfundingError> {
+        let milestone_key = StorageKey::PoolMilestone(pool_id, milestone_index);
+        env.storage()
+            .instance()
+            .get(&milestone_key)
+            .ok_or(CrowdfundingError::MilestoneNotFound)
+    }
+
+    fn create_milestone(
+        env: Env,
+        pool_id: u64,
+        milestone_index: u32,
+        description: String,
+        unlock_time: u64,
+    ) -> Result<(), CrowdfundingError> {
+        // Only admin can create milestones
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&StorageKey::Admin)
+            .ok_or(CrowdfundingError::NotInitialized)?;
+        admin.require_auth();
+
+        // Verify pool exists
+        let pool_key = StorageKey::Pool(pool_id);
+        let _pool: PoolConfig = env
+            .storage()
+            .instance()
+            .get(&pool_key)
+            .ok_or(CrowdfundingError::PoolNotFound)?;
+
+        // Create milestone
+        let milestone = MilestoneDetails {
+            pool_id,
+            milestone_index,
+            description,
+            unlock_time,
+            is_unlocked: false,
+            unlocked_by: None,
+            unlocked_at: None,
+            performance_override: false,
+        };
+
+        // Save milestone
+        let milestone_key = StorageKey::PoolMilestone(pool_id, milestone_index);
+        env.storage().instance().set(&milestone_key, &milestone);
+
+        // Emit event for milestone creation
+        events::milestone_created(&env, pool_id, milestone_index, unlock_time);
+
+        Ok(())
     }
 }
