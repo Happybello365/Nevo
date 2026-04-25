@@ -14,7 +14,8 @@ use crate::base::{
         ApplicationStatus, CampaignDetails, CampaignLifecycleStatus, CampaignMetrics, Contribution,
         EmergencyWithdrawal, EventDetails, EventMetrics, MultiSigConfig, PoolConfig,
         PoolContribution, PoolMetadata, PoolMetrics, PoolState, ScholarshipApplication, StorageKey,
-        MAX_DESCRIPTION_LENGTH, MAX_HASH_LENGTH, MAX_SINGLE_OP_ITEMS, MAX_STRING_LENGTH, MAX_URL_LENGTH,
+        MAX_DESCRIPTION_LENGTH, MAX_HASH_LENGTH, MAX_SINGLE_OP_ITEMS, MAX_STRING_LENGTH,
+        MAX_URL_LENGTH,
     },
 };
 use crate::interfaces::application::ApplicationTrait;
@@ -70,6 +71,36 @@ impl CrowdfundingContract {
             .expect("fee calculation overflow");
 
         numerator / BPS_DENOMINATOR
+    }
+
+    fn tracker_get(env: &Env) -> Vec<u64> {
+        env.storage()
+            .instance()
+            .get(&StorageKey::ActivePoolTracker)
+            .unwrap_or(Vec::new(env))
+    }
+
+    fn tracker_push(env: &Env, pool_id: u64) {
+        let mut ids = Self::tracker_get(env);
+        ids.push_back(pool_id);
+        env.storage()
+            .instance()
+            .set(&StorageKey::ActivePoolTracker, &ids);
+    }
+
+    fn tracker_remove(env: &Env, pool_id: u64) {
+        let mut ids = Self::tracker_get(env);
+        if let Some(pos) = (0..ids.len()).find(|&i| ids.get(i).unwrap() == pool_id) {
+            let last = ids.len() - 1;
+            if pos != last {
+                let last_val = ids.get(last).unwrap();
+                ids.set(pos, last_val);
+            }
+            ids.pop_back();
+            env.storage()
+                .instance()
+                .set(&StorageKey::ActivePoolTracker, &ids);
+        }
     }
 }
 
@@ -955,6 +986,7 @@ impl CrowdfundingTrait for CrowdfundingContract {
                 .set(&platform_fees_key, &(current_fees + creation_fee));
 
             events::creation_fee_paid(&env, creator.clone(), creation_fee);
+        }
         // Validate that the provided token matches the platform's accepted token
         let token_key = StorageKey::CrowdfundingToken;
         if !env.storage().instance().has(&token_key) {
@@ -1049,6 +1081,8 @@ impl CrowdfundingTrait for CrowdfundingContract {
             config.target_amount,
             deadline,
         );
+
+        Self::tracker_push(&env, pool_id);
 
         Ok(pool_id)
     }
@@ -1187,6 +1221,8 @@ impl CrowdfundingTrait for CrowdfundingContract {
                 deadline,
             ),
         );
+
+        Self::tracker_push(&env, pool_id);
 
         Ok(pool_id)
     }
@@ -1956,6 +1992,8 @@ impl CrowdfundingTrait for CrowdfundingContract {
         let now = env.ledger().timestamp();
         events::pool_closed(&env, pool_id, caller.clone(), now);
 
+        Self::tracker_remove(&env, pool_id);
+
         Ok(())
     }
 
@@ -2138,6 +2176,10 @@ impl CrowdfundingTrait for CrowdfundingContract {
 
     fn get_contract_version(env: Env) -> String {
         String::from_str(&env, "1.2.0")
+    }
+
+    fn list_active_pools(env: Env) -> Vec<u64> {
+        Self::tracker_get(&env)
     }
 
     fn get_pool_contributions_paginated(
@@ -2404,7 +2446,6 @@ impl CrowdfundingTrait for CrowdfundingContract {
     }
 }
 
-#[contractimpl]
 impl ApplicationTrait for CrowdfundingContract {
     fn apply_for_scholarship(
         env: Env,

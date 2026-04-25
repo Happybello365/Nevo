@@ -276,4 +276,7 @@ pub trait CrowdfundingTrait {
         pool_id: u64,
         applicant: Address,
     ) -> Result<ScholarshipApplication, ValidationError>;
+
+    /// Returns the Vec of currently-active pool IDs in O(1) storage read.
+    fn list_active_pools(env: Env) -> Vec<u64>;
 }

@@ -392,4 +392,8 @@ impl CrowdfundingTrait for FundEduContract {
     ) -> Result<(), CrowdfundingError> {
         CrowdfundingContract::withdraw_unallocated(env, pool_id, sponsor, amount)
     }
+
+    fn list_active_pools(env: Env) -> Vec<u64> {
+        CrowdfundingContract::list_active_pools(env)
+    }
 }

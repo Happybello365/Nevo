@@ -449,17 +449,6 @@ pub struct PoolContribution {
     pub asset: Address,
 }
 
-/// Documentation for this item.
-#[allow(missing_docs)]
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-/// Defines the possible states or errors for storagekey.
-pub enum ApplicationStatus {
-    Pending = 0,
-    Approved = 1,
-    Rejected = 2,
-}
-
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ApplicationDetails {
@@ -565,6 +554,8 @@ pub enum StorageKey {
     PoolBalance(u64),
     // Sum of requested_amount for all Approved applications on a pool
     PoolAllocated(u64),
+    // O(1) tracker: Vec<u64> of currently-active pool IDs
+    ActivePoolTracker,
 }
 
 #[cfg(test)]
