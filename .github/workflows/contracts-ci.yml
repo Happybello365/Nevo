@@ -1,12 +1,12 @@
-name: Contract Build Check
+name: Backend Build Check
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'nevo_server/**'
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'nevo_server/**'
 
@@ -16,15 +16,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
+          node-version: "20"
 
-      - name: Build contract
-        run: cargo build
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./nevo_server
+
+      - name: Build backend
+        run: npm run build
         working-directory: ./nevo_server
