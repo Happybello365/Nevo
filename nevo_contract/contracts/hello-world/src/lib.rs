@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, token, Address, Env, String, Symbol};
+use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, String, Symbol};
 
 // Storage key constants
 const POOL_COUNT: &str = "pool_count";
@@ -56,6 +56,60 @@ impl Contract {
         env.storage().persistent().set(&pool_count_key, &pool_count);
 
         pool_id
+    }
+
+    /// Apply for a scholarship from an active pool.
+    pub fn apply_for_scholarship(
+        env: Env,
+        student: Address,
+        pool_id: u32,
+        credential_hash: BytesN<32>,
+        requested_amount: i128,
+    ) -> u32 {
+        student.require_auth();
+
+        let pool_key = pool_id;
+        let pool_data: (Address, u128, u128, bool) = env
+            .storage()
+            .persistent()
+            .get::<_, (Address, u128, u128, bool)>(&pool_key)
+            .expect("Pool not found");
+
+        if pool_data.3 {
+            panic!("Pool is inactive");
+        }
+
+        if requested_amount <= 0 {
+            panic!("Requested amount must be positive");
+        }
+
+        let applicant_key = (
+            Symbol::new(&env, APPLICANT_PREFIX),
+            pool_id,
+            student.clone(),
+        );
+        if env.storage().persistent().has(&applicant_key) {
+            panic!("Duplicate application");
+        }
+
+        let count_key = (Symbol::new(&env, APPLICATION_COUNT_PREFIX), pool_id);
+        let mut app_count: u32 = env
+            .storage()
+            .persistent()
+            .get::<_, u32>(&count_key)
+            .unwrap_or(0);
+        app_count += 1;
+
+        let app_key = (Symbol::new(&env, APPLICATION_PREFIX), pool_id, app_count);
+        env.storage().persistent().set(
+            &app_key,
+            &(student.clone(), credential_hash, requested_amount),
+        );
+
+        env.storage().persistent().set(&applicant_key, &true);
+        env.storage().persistent().set(&count_key, &app_count);
+
+        app_count
     }
 
     /// Donate to an existing pool.
@@ -139,6 +193,15 @@ impl Contract {
             .unwrap_or(String::from_str(&env, ""))
     }
 
+    /// Retrieve a stored application record for a pool.
+    pub fn get_application(env: Env, pool_id: u32, application_id: u32) -> (Address, BytesN<32>, i128) {
+        let app_key = (Symbol::new(&env, APPLICATION_PREFIX), pool_id, application_id);
+        env.storage()
+            .persistent()
+            .get::<_, (Address, BytesN<32>, i128)>(&app_key)
+            .expect("Application not found")
+    }
+
     /// Get claimed amount for a student in a pool
     pub fn get_claimed_amount(env: Env, pool_id: u32, student: Address) -> i128 {
         let claimed_key = (CLAIMED_AMOUNT_PREFIX, pool_id, student.clone());
@@ -166,12 +229,28 @@ impl Contract {
         student: Address,
         pool_id: u32,
         claim_amount: i128,
-        token_address: Address,
+        _token_address: Address,
     ) {
-        // Enforce student authentication
         student.require_auth();
 
-        // Get pool data
+        if claim_amount <= 0 {
+            panic!("Claim amount must be positive");
+        }
+
+        let status_key = (APPLICATION_STATUS_PREFIX, pool_id, student.clone());
+        let status: String = env
+            .storage()
+            .persistent()
+            .get::<_, String>(&status_key)
+            .unwrap_or(String::from_str(&env, ""));
+
+        if status == String::from_str(&env, "") {
+            panic!("Application status not found");
+        }
+        if status != String::from_str(&env, APPLICATION_STATUS_APPROVED) {
+            panic!("Application is not approved");
+        }
+
         let pool_key = pool_id;
         let pool_data: (Address, u128, u128, bool) = env
             .storage()
@@ -179,39 +258,20 @@ impl Contract {
             .get::<_, (Address, u128, u128, bool)>(&pool_key)
             .expect("Pool not found");
 
-        // Check if already applied
-        let applicant_key = (
-            Symbol::new(&env, APPLICANT_PREFIX),
-            pool_id,
-            student.clone(),
-        );
-        if env.storage().persistent().has(&applicant_key) {
-            panic!("Duplicate application");
-        }
-
-        // Get next application id for this pool
-        let count_key = (Symbol::new(&env, APPLICATION_COUNT_PREFIX), pool_id);
-        let mut app_count: u32 = env
+        let collected_amount = pool_data.2 as i128;
+        let claimed_key = (CLAIMED_AMOUNT_PREFIX, pool_id, student.clone());
+        let current_claimed: i128 = env
             .storage()
             .persistent()
-            .get::<_, u32>(&count_key)
+            .get::<_, i128>(&claimed_key)
             .unwrap_or(0);
-        app_count += 1;
 
-        // Store application
-        let app_key = (Symbol::new(&env, APPLICATION_PREFIX), pool_id, app_count);
-        env.storage().persistent().set(
-            &app_key,
-            &(app_count, student.clone(), application_data.clone()),
-        );
+        let new_claimed = current_claimed + claim_amount;
+        if new_claimed > collected_amount {
+            panic!("Overdraw attempt");
+        }
 
-        // Mark as applied
-        env.storage().persistent().set(&applicant_key, &true);
-
-        // Update count
-        env.storage().persistent().set(&count_key, &app_count);
-
-        (app_count, student, application_data)
+        env.storage().persistent().set(&claimed_key, &new_claimed);
     }
 }
 

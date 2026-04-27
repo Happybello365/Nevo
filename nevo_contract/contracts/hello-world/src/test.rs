@@ -3,7 +3,7 @@
 use super::*;
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
-    Address, Env, IntoVal, String,
+    Address, BytesN, Env, IntoVal, String,
 };
 
 #[test]
@@ -48,6 +48,78 @@ fn test_donate() {
 
     let pool = client.get_pool(&pool_id);
     assert_eq!(pool.3, donation_amount); // collected amount
+}
+
+#[test]
+fn test_apply_for_scholarship_creates_application() {
+    let env = Env::default();
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let creator = Address::generate(&env);
+    let student = Address::generate(&env);
+    let title = String::from_str(&env, "Scholarship Pool");
+    let description = String::from_str(&env, "Support for students");
+    let goal: u128 = 1_000_000_000;
+
+    let pool_id = client.create_pool(&creator, &title, &description, &goal);
+
+    let credential_hash = BytesN::from_array(&env, &[1u8; 32]);
+    let requested_amount: i128 = 100_000_000;
+
+    let application_id = client
+        .mock_auths(&[MockAuth {
+            address: &student,
+            invoke: &MockAuthInvoke {
+                contract: &contract_id,
+                fn_name: "apply_for_scholarship",
+                args: (&student, &pool_id, &credential_hash, &requested_amount).into_val(&env),
+                sub_invokes: &[],
+            },
+        }])
+        .apply_for_scholarship(&student, &pool_id, &credential_hash, &requested_amount);
+
+    assert_eq!(application_id, 1);
+
+    let application = client.get_application(&pool_id, &application_id);
+    assert_eq!(application.0, student);
+    assert_eq!(application.1, credential_hash);
+    assert_eq!(application.2, requested_amount);
+
+    let status = client.get_application_status(&pool_id, &student);
+    assert_eq!(status, String::from_str(&env, ""));
+}
+
+#[test]
+#[should_panic(expected = "Pool is inactive")]
+fn test_apply_for_scholarship_inactive_pool() {
+    let env = Env::default();
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let creator = Address::generate(&env);
+    let student = Address::generate(&env);
+    let title = String::from_str(&env, "Scholarship Pool");
+    let description = String::from_str(&env, "Inactive pool");
+    let goal: u128 = 1_000_000_000;
+
+    let pool_id = client.create_pool(&creator, &title, &description, &goal);
+    client.close_pool(&pool_id);
+
+    let credential_hash = BytesN::from_array(&env, &[2u8; 32]);
+    let requested_amount: i128 = 100_000_000;
+
+    client
+        .mock_auths(&[MockAuth {
+            address: &student,
+            invoke: &MockAuthInvoke {
+                contract: &contract_id,
+                fn_name: "apply_for_scholarship",
+                args: (&student, &pool_id, &credential_hash, &requested_amount).into_val(&env),
+                sub_invokes: &[],
+            },
+        }])
+        .apply_for_scholarship(&student, &pool_id, &credential_hash, &requested_amount);
 }
 
 #[test]
