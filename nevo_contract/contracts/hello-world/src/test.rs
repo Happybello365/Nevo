@@ -104,7 +104,17 @@ fn test_apply_for_scholarship_inactive_pool() {
     let goal: u128 = 1_000_000_000;
 
     let pool_id = client.create_pool(&creator, &title, &description, &goal);
-    client.close_pool(&pool_id);
+    client
+        .mock_auths(&[MockAuth {
+            address: &creator,
+            invoke: &MockAuthInvoke {
+                contract: &contract_id,
+                fn_name: "close_pool",
+                args: (&pool_id,).into_val(&env),
+                sub_invokes: &[],
+            },
+        }])
+        .close_pool(&pool_id);
 
     let credential_hash = BytesN::from_array(&env, &[2u8; 32]);
     let requested_amount: i128 = 100_000_000;
@@ -156,7 +166,17 @@ fn test_close_pool() {
     let goal: u128 = 1_000_000_000;
 
     let pool_id = client.create_pool(&creator, &title, &description, &goal);
-    client.close_pool(&pool_id);
+    client
+        .mock_auths(&[MockAuth {
+            address: &creator,
+            invoke: &MockAuthInvoke {
+                contract: &contract_id,
+                fn_name: "close_pool",
+                args: (&pool_id,).into_val(&env),
+                sub_invokes: &[],
+            },
+        }])
+        .close_pool(&pool_id);
 
     let pool = client.get_pool(&pool_id);
     assert_eq!(pool.4, true); // is_closed
@@ -176,9 +196,48 @@ fn test_donate_to_closed_pool() {
     let goal: u128 = 1_000_000_000;
 
     let pool_id = client.create_pool(&creator, &title, &description, &goal);
-    client.close_pool(&pool_id);
+    client
+        .mock_auths(&[MockAuth {
+            address: &creator,
+            invoke: &MockAuthInvoke {
+                contract: &contract_id,
+                fn_name: "close_pool",
+                args: (&pool_id,).into_val(&env),
+                sub_invokes: &[],
+            },
+        }])
+        .close_pool(&pool_id);
 
     client.donate(&pool_id, &donor, &100_000_000);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Auth")]
+fn test_close_pool_unauthorized() {
+    let env = Env::default();
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let creator = Address::generate(&env);
+    let unauthorized = Address::generate(&env);
+    let title = String::from_str(&env, "Test Pool");
+    let description = String::from_str(&env, "Test");
+    let goal: u128 = 1_000_000_000;
+
+    let pool_id = client.create_pool(&creator, &title, &description, &goal);
+
+    // Try to close pool with unauthorized user - should panic
+    client
+        .mock_auths(&[MockAuth {
+            address: &unauthorized,
+            invoke: &MockAuthInvoke {
+                contract: &contract_id,
+                fn_name: "close_pool",
+                args: (&pool_id,).into_val(&env),
+                sub_invokes: &[],
+            },
+        }])
+        .close_pool(&pool_id);
 }
 
 #[test]

@@ -19,6 +19,15 @@ const CLAIMED_AMOUNT_PREFIX: &str = "claimed_amount";
 const APPLICATION_STATUS_APPROVED: &str = "Approved";
 const APPLICATION_STATUS_REJECTED: &str = "Rejected";
 
+#[derive(Clone)]
+#[contracttype]
+pub struct Pool {
+    pub sponsor: Address,
+    pub goal: u128,
+    pub collected: u128,
+    pub is_closed: bool,
+}
+
 #[contract]
 pub struct Contract;
 
@@ -49,9 +58,16 @@ impl Contract {
         // Store pool data - using numeric pool ID as key
         let pool_key = pool_id;
 
+        let pool = Pool {
+            sponsor: creator.clone(),
+            goal,
+            collected: 0u128,
+            is_closed: false,
+        };
+
         env.storage()
             .persistent()
-            .set(&pool_id, &(creator.clone(), goal, 0u128, false));
+            .set(&pool_id, &pool);
 
         env.storage().persistent().set(&pool_count_key, &pool_count);
 
@@ -69,13 +85,13 @@ impl Contract {
         student.require_auth();
 
         let pool_key = pool_id;
-        let pool_data: (Address, u128, u128, bool) = env
+        let pool: Pool = env
             .storage()
             .persistent()
-            .get::<_, (Address, u128, u128, bool)>(&pool_key)
+            .get::<_, Pool>(&pool_key)
             .expect("Pool not found");
 
-        if pool_data.3 {
+        if pool.is_closed {
             panic!("Pool is inactive");
         }
 
@@ -116,20 +132,26 @@ impl Contract {
     pub fn donate(env: Env, pool_id: u32, donor: Address, amount: u128) {
         // donor.require_auth();  // TODO: Enable auth validation in production
 
-        let pool_data: (Address, u128, u128, bool) = env
+        let pool_data: Pool = env
             .storage()
             .persistent()
-            .get::<_, (Address, u128, u128, bool)>(&pool_id)
+            .get::<_, Pool>(&pool_id)
             .expect("Pool not found");
 
-        if pool_data.3 {
+        if pool_data.is_closed {
             panic!("Pool is closed");
         }
 
-        let new_collected = pool_data.2 + amount;
+        let new_collected = pool_data.collected + amount;
+        let updated_pool = Pool {
+            sponsor: pool_data.sponsor,
+            goal: pool_data.goal,
+            collected: new_collected,
+            is_closed: pool_data.is_closed,
+        };
         env.storage().persistent().set(
             &pool_key,
-            &(pool_data.0.clone(), pool_data.1, new_collected, pool_data.3),
+            &updated_pool,
         );
 
         let donor_index: u32 = env
@@ -145,28 +167,35 @@ impl Contract {
 
     /// Get pool information as a tuple (id, creator, goal, collected, is_closed).
     pub fn get_pool(env: Env, pool_id: u32) -> (u32, Address, u128, u128, bool) {
-        let pool_data: (Address, u128, u128, bool) = env
+        let pool: Pool = env
             .storage()
             .persistent()
-            .get::<_, (Address, u128, u128, bool)>(&pool_id)
+            .get::<_, Pool>(&pool_id)
             .expect("Pool not found");
 
-        (pool_id, pool_data.0, pool_data.1, pool_data.2, pool_data.3)
+        (pool_id, pool.sponsor, pool.goal, pool.collected, pool.is_closed)
     }
 
     /// Close a donation pool.
     pub fn close_pool(env: Env, pool_id: u32) {
-        let pool_data: (Address, u128, u128, bool) = env
+        let pool: Pool = env
             .storage()
             .persistent()
-            .get::<_, (Address, u128, u128, bool)>(&pool_id)
+            .get::<_, Pool>(&pool_id)
             .expect("Pool not found");
 
-        // pool_data.0.require_auth();  // TODO: Enable auth validation in production
+        pool.sponsor.require_auth();
+
+        let updated_pool = Pool {
+            sponsor: pool.sponsor,
+            goal: pool.goal,
+            collected: pool.collected,
+            is_closed: true,
+        };
 
         env.storage()
             .persistent()
-            .set(&pool_id, &(pool_data.0, pool_data.1, pool_data.2, true));
+            .set(&pool_id, &updated_pool);
     }
 
     /// Get the total number of pools.
@@ -252,13 +281,13 @@ impl Contract {
         }
 
         let pool_key = pool_id;
-        let pool_data: (Address, u128, u128, bool) = env
+        let pool: Pool = env
             .storage()
             .persistent()
-            .get::<_, (Address, u128, u128, bool)>(&pool_key)
+            .get::<_, Pool>(&pool_key)
             .expect("Pool not found");
 
-        let collected_amount = pool_data.2 as i128;
+        let collected_amount = pool.collected as i128;
         let claimed_key = (CLAIMED_AMOUNT_PREFIX, pool_id, student.clone());
         let current_claimed: i128 = env
             .storage()
