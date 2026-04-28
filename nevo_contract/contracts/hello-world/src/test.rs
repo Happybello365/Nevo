@@ -1,10 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{
-    testutils::{Address as _, MockAuth, MockAuthInvoke},
-    Address, Env, IntoVal, String,
-};
+use soroban_sdk::{testutils::Address as _, Address, Env, String, Vec};
 
 #[test]
 fn test_create_pool() {
@@ -143,6 +140,7 @@ fn test_multiple_pools() {
 #[should_panic(expected = "Application status not found")]
 fn test_claim_funds_no_status() {
     let env = Env::default();
+    env.mock_all_auths();
     let contract_id = env.register(Contract, ());
     let client = ContractClient::new(&env, &contract_id);
 
@@ -161,23 +159,14 @@ fn test_claim_funds_no_status() {
     client.donate(&pool_id, &creator, &500_000_000);
 
     // Try to claim without setting status - should panic
-    client
-        .mock_auths(&[MockAuth {
-            address: &student,
-            invoke: &MockAuthInvoke {
-                contract: &contract_id,
-                fn_name: "claim_funds",
-                args: (&student, &pool_id, &100_000_000i128, &token_address).into_val(&env),
-                sub_invokes: &[],
-            },
-        }])
-        .claim_funds(&student, &pool_id, &100_000_000i128, &token_address);
+    client.claim_funds(&student, &pool_id, &100_000_000i128, &token_address);
 }
 
 #[test]
 #[should_panic(expected = "Application is not approved")]
 fn test_claim_funds_rejected_application() {
     let env = Env::default();
+    env.mock_all_auths();
     let contract_id = env.register(Contract, ());
     let client = ContractClient::new(&env, &contract_id);
 
@@ -199,23 +188,14 @@ fn test_claim_funds_rejected_application() {
     client.set_application_status(&pool_id, &student, &String::from_str(&env, "Rejected"));
 
     // Try to claim with rejected status - should panic
-    client
-        .mock_auths(&[MockAuth {
-            address: &student,
-            invoke: &MockAuthInvoke {
-                contract: &contract_id,
-                fn_name: "claim_funds",
-                args: (&student, &pool_id, &100_000_000i128, &token_address).into_val(&env),
-                sub_invokes: &[],
-            },
-        }])
-        .claim_funds(&student, &pool_id, &100_000_000i128, &token_address);
+    client.claim_funds(&student, &pool_id, &100_000_000i128, &token_address);
 }
 
 #[test]
 #[should_panic(expected = "Overdraw attempt")]
 fn test_claim_funds_overdraw() {
     let env = Env::default();
+    env.mock_all_auths();
     let contract_id = env.register(Contract, ());
     let client = ContractClient::new(&env, &contract_id);
 
@@ -237,23 +217,14 @@ fn test_claim_funds_overdraw() {
     client.set_application_status(&pool_id, &student, &String::from_str(&env, "Approved"));
 
     // Try to claim more than available - should panic
-    client
-        .mock_auths(&[MockAuth {
-            address: &student,
-            invoke: &MockAuthInvoke {
-                contract: &contract_id,
-                fn_name: "claim_funds",
-                args: (&student, &pool_id, &500_000_000i128, &token_address).into_val(&env),
-                sub_invokes: &[],
-            },
-        }])
-        .claim_funds(&student, &pool_id, &500_000_000i128, &token_address);
+    client.claim_funds(&student, &pool_id, &500_000_000i128, &token_address);
 }
 
 #[test]
 #[should_panic(expected = "Claim amount must be positive")]
 fn test_claim_funds_negative_amount() {
     let env = Env::default();
+    env.mock_all_auths();
     let contract_id = env.register(Contract, ());
     let client = ContractClient::new(&env, &contract_id);
 
@@ -275,17 +246,7 @@ fn test_claim_funds_negative_amount() {
     client.set_application_status(&pool_id, &student, &String::from_str(&env, "Approved"));
 
     // Try to claim negative amount - should panic
-    client
-        .mock_auths(&[MockAuth {
-            address: &student,
-            invoke: &MockAuthInvoke {
-                contract: &contract_id,
-                fn_name: "claim_funds",
-                args: (&student, &pool_id, &-100_000_000i128, &token_address).into_val(&env),
-                sub_invokes: &[],
-            },
-        }])
-        .claim_funds(&student, &pool_id, &-100_000_000i128, &token_address);
+    client.claim_funds(&student, &pool_id, &-100_000_000i128, &token_address);
 }
 
 #[test]
